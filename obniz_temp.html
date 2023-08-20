@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" />
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+  <script src="https://unpkg.com/obniz@3.x/obniz.js" crossorigin="anonymous" ></script>
+  <script src="https://unpkg.com/obniz@3.26.0/obniz.js"></script>
+</head>
+
+<body>
+  <h3>環境</h3>
+  <div class="obniz_temp">
+    <div id="obniz-debug"></div>
+  </div>
+
+  <script>
+    let ifttt_event = "temp";
+    let ifttt_secret_key = "d1fxJvb_AeIWXkecGF8pvq";
+    let temp;
+    let time;
+
+    const obniz = new Obniz("OBNIZ_ID_HERE"); // ここにobnizデバイスのIDを設定
+    var tempsens
+    var light
+    
+    obniz.onconnect = async function() {
+      tempsens = obniz.wired("MCP9701", { gnd:0 , output:1, vcc:2});
+      light = obniz.wired("Keyestudio_TrafficLight", {gnd:8, green:9, yellow:10, red:11});
+    }
+
+    obniz.onloop = async function() {
+      temp = (Math.round((await tempsens.getWait())*10))/10;
+      console.log('temperature:' + temp + '°C');
+      time = gettime();
+      console.log(time);
+
+      var formData = new FormData();
+      formData.append("value1", time);
+      formData.append("value2", temp);
+      //IFTTTリクエスト
+      await fetch(
+        `https://maker.ifttt.com/trigger/${ifttt_event}/with/key/${ifttt_secret_key}`,
+        {
+          method: "POST",
+          mode: "no-cors",
+          body: formData
+        }
+      )
+
+      await obniz.wait(5000);  //5秒待ち
+
+      lighting();
+    };
+
+    function lighting(){
+      if (temp > 35){
+        light.red.on();
+        obniz.display.clear();
+        obniz.display.print("too hot");
+        obniz.display.print(temp + '°C');
+      } else if (temp < 28){
+        light.green.on();
+        obniz.display.clear();
+        obniz.display.print("comfortable");
+        obniz.display.print(temp + '°C');
+      } else {
+        light.yellow.on();
+        obniz.display.clear();
+        obniz.display.print("management required");
+        obniz.display.print(temp + '°C');
+      }
+    }
+
+    function gettime() {
+      var jikan= new Date();
+      var hour = jikan.getHours();
+      var minute = jikan.getMinutes();
+      var second = jikan.getSeconds();
+
+      var time = hour + ":" + minute + ":" + second;
+      return time;
+    }
+
+  </script>
+</body>
+</html>
